@@ -13,17 +13,17 @@ const Setting = require("../models/Setting");
  * Format untuk transaksi KREDIT - Fixed page size, auto pagination
  */
 async function generateDotMatrixInvoice(saleData) {
-  const { invoiceNumber, saleDate, member, items, totalAmount, discountAmount, finalAmount, dpAmount, remainingDebt, dueDate, notes } = saleData;
+  const { invoiceNumber, saleDate, member, items, totalAmount, discountAmount, finalAmount, dpAmount, remainingDebt, dueDate, notes, clientId } = saleData;
 
   // Get settings
-  const companyName = await Setting.get("company_name", "KOPERASI YAMUGHNI");
-  const companyAddress = await Setting.get("company_address", "Jalan Kaum No. 2 Samping Terminal Cicaheum");
-  const companyPhone = await Setting.get("company_phone", "Telepon (022) 20503787, 085877877877");
-  const companyWebsite = await Setting.get("company_website", "www.yamughni.info");
-  const companyCity = await Setting.get("company_city", "Bandung");
-  const bankName = await Setting.get("bank_name", "MANDIRI");
-  const bankAccount = await Setting.get("bank_account_number", "131-00-1687726-0");
-  const bankAccountName = await Setting.get("bank_account_name", "KOPERASI YAMUGHNI");
+  const companyName = await Setting.get("company_name", clientId, "KOPERASI YAMUGHNI");
+  const companyAddress = await Setting.get("company_address", clientId, "Jalan Kaum No. 2 Samping Terminal Cicaheum");
+  const companyPhone = await Setting.get("company_phone", clientId, "Telepon (022) 20503787, 085877877877");
+  const companyWebsite = await Setting.get("company_website", clientId, "www.yamughni.info");
+  const companyCity = await Setting.get("company_city", clientId, "Bandung");
+  const bankName = await Setting.get("bank_name", clientId, "MANDIRI");
+  const bankAccount = await Setting.get("bank_account_number", clientId, "131-00-1687726-0");
+  const bankAccountName = await Setting.get("bank_account_name", clientId, "KOPERASI YAMUGHNI");
 
   // Format date
   const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
@@ -311,12 +311,12 @@ async function generateDotMatrixInvoice(saleData) {
  * Format untuk transaksi TUNAI - Layout sesuai standar thermal receipt
  */
 async function generateThermalReceipt(saleData) {
-  const { invoiceNumber, saleDate, member, user, items, totalAmount, discountAmount, finalAmount, paymentReceived, changeAmount } = saleData;
+  const { invoiceNumber, saleDate, member, user, items, totalAmount, discountAmount, finalAmount, paymentReceived, changeAmount, clientId } = saleData;
 
   // Get settings
-  const companyName = await Setting.get("company_name", "KOPERASI YAMUGHNI");
-  const companyAddress = await Setting.get("company_address", "Jl. Kaum No. 2 Cicaheum");
-  const companyPhone = await Setting.get("company_phone", "Telp: (022) 20503787");
+  const companyName = await Setting.get("company_name", clientId, "KOPERASI YAMUGHNI");
+  const companyAddress = await Setting.get("company_address", clientId, "Jl. Kaum No. 2 Cicaheum");
+  const companyPhone = await Setting.get("company_phone", clientId, "Telp: (022) 20503787");
 
   // Format date & time
   const date = new Date(saleDate);
@@ -538,8 +538,7 @@ async function generateThermalReceipt(saleData) {
     <span class="info-label">KASIR</span>
     <span class="info-value">: ${kasirName}</span>
   </div>
-  ${
-    member
+  ${member
       ? `<div class="info-row">
     <span class="info-label">MEMBER</span>
     <span class="info-value">: ${memberId}</span>
@@ -549,7 +548,7 @@ async function generateThermalReceipt(saleData) {
     <span class="info-value">: ${memberName}</span>
   </div>`
       : ""
-  }
+    }
   
   <div class="line"></div>
   
@@ -561,8 +560,7 @@ async function generateThermalReceipt(saleData) {
     <span class="total-label">TOTAL</span>
     <span class="total-value">: ${formatCurrency(totalAmount)}</span>
   </div>
-  ${
-    discountAmount > 0
+  ${discountAmount > 0
       ? `<div class="total-row">
     <span class="total-label">DISCOUNT</span>
     <span class="total-value">: ${formatCurrency(discountAmount)}</span>
@@ -572,7 +570,7 @@ async function generateThermalReceipt(saleData) {
     <span class="total-value">: ${formatCurrency(finalAmount)}</span>
   </div>`
       : ""
-  }
+    }
   <div class="total-row">
     <span class="total-label">BAYAR</span>
     <span class="total-value">: ${formatCurrency(paymentReceived)}</span>
@@ -630,12 +628,12 @@ async function generateThermalReceipt(saleData) {
  * Format untuk bukti pembayaran cicilan hutang member
  */
 async function generateDebtPaymentReceipt(paymentData) {
-  const { receiptNumber, paymentDate, member, debt, payment, user } = paymentData;
+  const { receiptNumber, paymentDate, member, debt, payment, user, clientId } = paymentData;
 
   // Get settings
-  const companyName = await Setting.get("company_name", "KOPERASI YAMUGHNI");
-  const companyAddress = await Setting.get("company_address", "Jl. Kaum No. 2 Cicaheum");
-  const companyPhone = await Setting.get("company_phone", "Telp: (022) 20503787");
+  const companyName = await Setting.get("company_name", clientId, "KOPERASI YAMUGHNI");
+  const companyAddress = await Setting.get("company_address", clientId, "Jl. Kaum No. 2 Cicaheum");
+  const companyPhone = await Setting.get("company_phone", clientId, "Telp: (022) 20503787");
 
   // Format date & time
   const date = new Date(paymentDate);
@@ -895,14 +893,13 @@ async function generateDebtPaymentReceipt(paymentData) {
     <span class="info-label">METODE BAYAR</span>
     <span class="info-value">: ${paymentMethodLabel}</span>
   </div>
-  ${
-    payment.notes
+  ${payment.notes
       ? `<div class="info-row">
     <span class="info-label">CATATAN</span>
     <span class="info-value">: ${payment.notes}</span>
   </div>`
       : ""
-  }
+    }
   
   <div class="line"></div>
   

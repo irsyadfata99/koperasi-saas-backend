@@ -853,8 +853,11 @@ class ProductController {
 
       const validLimit = Math.min(50, Math.max(1, parseInt(limit) || 10));
 
+      const clientId = req.user.clientId; // ✅ Isolation
+
       const products = await Product.findAll({
         where: {
+          clientId, // ✅ Filter by client
           // ✅ REMOVED: isActive: true
           [Op.or]: [{ name: { [Op.like]: `%${sanitizedQuery}%` } }, { barcode: { [Op.like]: `%${sanitizedQuery}%` } }, { sku: { [Op.like]: `%${sanitizedQuery}%` } }],
         },

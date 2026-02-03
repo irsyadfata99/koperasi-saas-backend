@@ -2,6 +2,7 @@
 const { Op } = require("sequelize");
 const Client = require("../models/Client");
 const User = require("../models/User"); // ✅ Import User
+const Setting = require("../models/Setting"); // ✅ Import Setting for auto-init
 const { sequelize } = require("../config/database"); // ✅ Import Sequelize for Transaction
 const ApiResponse = require("../utils/response");
 
@@ -85,7 +86,7 @@ class ClientController {
 
         try {
             const {
-                code,
+                code, // Now optional - will auto-generate if not provided
                 businessName,
                 ownerName,
                 phone,
@@ -97,17 +98,32 @@ class ClientController {
                 cashierUser // { username, password, email, name }
             } = req.body;
 
-            // Basic Validation
-            if (!code || !businessName) {
+            // Basic Validation - only businessName is required now
+            if (!businessName) {
                 await t.rollback();
                 return ApiResponse.validationError(
                     res,
                     {
-                        code: !code ? ["Kode harus diisi"] : [],
-                        businessName: !businessName ? ["Nama bisnis harus diisi"] : [],
+                        businessName: ["Nama bisnis harus diisi"],
                     },
                     "Data tidak lengkap"
                 );
+            }
+
+            // ✅ Auto-generate code if not provided (CLI-YEAR-XXXX format)
+            let clientCode = code;
+            if (!clientCode) {
+                const year = new Date().getFullYear();
+                const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+                clientCode = `CLI-${year}-${randomPart}`;
+
+                // Ensure uniqueness
+                let attempts = 0;
+                while (await Client.findOne({ where: { code: clientCode } }) && attempts < 10) {
+                    const newRandom = Math.random().toString(36).substring(2, 6).toUpperCase();
+                    clientCode = `CLI-${year}-${newRandom}`;
+                    attempts++;
+                }
             }
 
             // check required adminUser data
@@ -117,7 +133,7 @@ class ClientController {
             }
 
             // Check duplicate code
-            const existingCode = await Client.findOne({ where: { code } });
+            const existingCode = await Client.findOne({ where: { code: clientCode } });
             if (existingCode) {
                 await t.rollback();
                 return ApiResponse.validationError(
@@ -140,7 +156,7 @@ class ClientController {
 
             // 1. Create Client
             const client = await Client.create({
-                code,
+                code: clientCode,
                 businessName,
                 ownerName,
                 phone,
@@ -186,6 +202,19 @@ class ClientController {
             }
 
             await t.commit(); // ✅ Commit Transaction
+
+            // ✅ Auto-initialize default settings for new client (after commit)
+            try {
+                await Setting.initializeDefaults(client.id, {
+                    businessName: client.businessName,
+                    address: client.address,
+                    phone: client.phone,
+                });
+                console.log(`✅ Default settings initialized for client: ${client.code}`);
+            } catch (settingError) {
+                console.error(`⚠️ Failed to initialize settings for client ${client.code}:`, settingError.message);
+                // Don't fail the whole request, just log the error
+            }
 
             return ApiResponse.created(res, client, "Client dan User Admin berhasil dibuat");
         } catch (error) {

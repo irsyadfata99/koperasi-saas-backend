@@ -37,7 +37,7 @@ const Member = sequelize.define(
       allowNull: true,
     },
     regionCode: {
-      type: DataTypes.STRING(5),
+      type: DataTypes.STRING(50), // ✅ Increased from 5 to 50 for SaaS flexibility
       allowNull: false,
       field: "region_code",
     },

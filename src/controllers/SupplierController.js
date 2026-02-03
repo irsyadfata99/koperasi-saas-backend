@@ -269,8 +269,9 @@ class SupplierController {
         description,
         isActive,
       } = req.body;
+      const clientId = req.user.clientId;
 
-      const supplier = await Supplier.findByPk(id);
+      const supplier = await Supplier.findOne({ where: { id, clientId } });
 
       if (!supplier) {
         return ApiResponse.notFound(res, "Supplier tidak ditemukan");
@@ -342,6 +343,7 @@ class SupplierController {
         const existingName = await Supplier.findOne({
           where: {
             name,
+            clientId, // ✅ Add clientId scope
             id: { [Op.ne]: id },
           },
         });
@@ -384,8 +386,9 @@ class SupplierController {
   static async delete(req, res, next) {
     try {
       const { id } = req.params;
+      const clientId = req.user.clientId;
 
-      const supplier = await Supplier.findByPk(id);
+      const supplier = await Supplier.findOne({ where: { id, clientId } });
 
       if (!supplier) {
         return ApiResponse.notFound(res, "Supplier tidak ditemukan");
@@ -415,8 +418,9 @@ class SupplierController {
   static async toggleActive(req, res, next) {
     try {
       const { id } = req.params;
+      const clientId = req.user.clientId;
 
-      const supplier = await Supplier.findByPk(id);
+      const supplier = await Supplier.findOne({ where: { id, clientId } });
 
       if (!supplier) {
         return ApiResponse.notFound(res, "Supplier tidak ditemukan");

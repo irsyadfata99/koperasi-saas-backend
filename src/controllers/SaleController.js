@@ -115,7 +115,11 @@ class SaleController {
           );
         }
 
-        const subtotal = parseFloat(product.sellingPrice) * item.quantity;
+        // ✅ FIXED: Use member price if member is selected and member price exists
+        const price = member && parseFloat(product.sellingPriceMember) > 0
+          ? parseFloat(product.sellingPriceMember)
+          : parseFloat(product.sellingPrice);
+        const subtotal = price * item.quantity;
         totalAmount += subtotal;
 
         processedItems.push({
@@ -123,14 +127,14 @@ class SaleController {
           productName: product.name,
           quantity: item.quantity,
           unit: product.unit,
-          sellingPrice: product.sellingPrice,
+          sellingPrice: price, // ✅ Use the appropriate price (member or regular)
           subtotal,
         });
       }
 
       // ===== CALCULATE POINTS =====
       const pointsResult = member
-        ? await calculateTransactionPoints(processedItems)
+        ? await calculateTransactionPoints(processedItems, clientId)
         : {
           totalPoints: 0,
           itemsWithPoints: processedItems.map((i) => ({
@@ -632,7 +636,9 @@ class SaleController {
         dpAmount: sale.dpAmount,
         remainingDebt: sale.remainingDebt,
         dueDate: sale.dueDate,
+        dueDate: sale.dueDate,
         notes: sale.notes,
+        clientId: sale.clientId, // ✅ Pass clientId
       });
 
       const htmlWithPrint = html.replace(
@@ -674,6 +680,7 @@ class SaleController {
         finalAmount: sale.finalAmount,
         paymentReceived: sale.paymentReceived,
         changeAmount: sale.changeAmount,
+        clientId: sale.clientId, // ✅ Pass clientId
       });
 
       const htmlWithPrint = html.replace(

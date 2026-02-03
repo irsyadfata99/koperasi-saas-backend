@@ -95,8 +95,9 @@ Setting.prototype.toJSON = function () {
 /**
  * Get setting value by key
  */
-Setting.get = async function (key, defaultValue = null) {
-  const setting = await this.findOne({ where: { key } });
+Setting.get = async function (key, clientId, defaultValue = null) {
+  if (!clientId) throw new Error("ClientId required for Setting.get");
+  const setting = await this.findOne({ where: { key, clientId } });
   if (!setting) return defaultValue;
   return setting.getParsedValue();
 };
@@ -107,16 +108,20 @@ Setting.get = async function (key, defaultValue = null) {
 Setting.set = async function (
   key,
   value,
+  clientId, // ✅ Add clientId
   type = "TEXT",
   group = "GENERAL",
   description = null,
 ) {
+  if (!clientId) throw new Error("ClientId required for Setting.set");
+
   const stringValue =
     typeof value === "object" ? JSON.stringify(value) : String(value);
 
   const [setting] = await this.findOrCreate({
-    where: { key },
+    where: { key, clientId }, // ✅ Scope by client
     defaults: {
+      clientId,
       key,
       value: stringValue,
       type,
@@ -134,41 +139,50 @@ Setting.set = async function (
 
 /**
  * Initialize default settings
+ * @param {string} clientId - Client UUID
+ * @param {object} clientData - Optional client data { businessName, address, phone }
  */
-Setting.initializeDefaults = async function () {
+Setting.initializeDefaults = async function (clientId, clientData = {}) {
+  if (!clientId) throw new Error("ClientId required for initializeDefaults");
+
+  // ✅ Use client data if available, otherwise use placeholder
+  const companyName = clientData.businessName || "Nama Toko Anda";
+  const companyAddress = clientData.address || "Alamat Toko Anda";
+  const companyPhone = clientData.phone || "Telepon Anda";
+
   const defaults = [
     // ===== COMPANY INFO =====
     {
       key: "company_name",
-      value: "KOPERASI YAMUGHNI",
+      value: companyName, // ✅ Dynamic from client data
       type: "TEXT",
       group: "COMPANY",
       description: "Nama perusahaan",
     },
     {
       key: "company_address",
-      value: "Jalan Kaum No. 4 Samping Terminal Cicaheum",
+      value: companyAddress, // ✅ Dynamic from client data
       type: "TEXT",
       group: "COMPANY",
       description: "Alamat perusahaan",
     },
     {
       key: "company_phone",
-      value: "Telepon (022) 20503787, 085877877877",
+      value: companyPhone, // ✅ Dynamic from client data
       type: "TEXT",
       group: "COMPANY",
       description: "Nomor telepon perusahaan",
     },
     {
       key: "company_website",
-      value: "www.yamughni.info",
+      value: "",
       type: "TEXT",
       group: "COMPANY",
       description: "Website perusahaan",
     },
     {
       key: "company_city",
-      value: "Bandung",
+      value: "",
       type: "TEXT",
       group: "COMPANY",
       description: "Kota perusahaan",
@@ -177,21 +191,21 @@ Setting.initializeDefaults = async function () {
     // ===== BANK INFO =====
     {
       key: "bank_name",
-      value: "MANDIRI",
+      value: "",
       type: "TEXT",
       group: "BANK",
       description: "Nama bank",
     },
     {
       key: "bank_account_number",
-      value: "131-00-1687726-0",
+      value: "",
       type: "TEXT",
       group: "BANK",
       description: "Nomor rekening bank",
     },
     {
       key: "bank_account_name",
-      value: "KOPERASI YAMUGHNI",
+      value: companyName, // ✅ Use company name as default
       type: "TEXT",
       group: "BANK",
       description: "Nama pemilik rekening",
@@ -309,6 +323,7 @@ Setting.initializeDefaults = async function () {
       const created = await this.set(
         setting.key,
         setting.value,
+        clientId, // ✅ Pass clientId
         setting.type,
         setting.group,
         setting.description,
@@ -326,8 +341,9 @@ Setting.initializeDefaults = async function () {
 /**
  * Get all settings grouped
  */
-Setting.getAllGrouped = async function () {
+Setting.getAllGrouped = async function (clientId) {
   const settings = await this.findAll({
+    where: { clientId }, // ✅ Filter by client
     order: [
       ["group", "ASC"],
       ["key", "ASC"],
@@ -348,9 +364,9 @@ Setting.getAllGrouped = async function () {
 /**
  * Get all settings by group
  */
-Setting.getByGroup = async function (group) {
+Setting.getByGroup = async function (group, clientId) {
   const settings = await this.findAll({
-    where: { group },
+    where: { group, clientId }, // ✅ Filter by client
     order: [["key", "ASC"]],
   });
 
@@ -365,12 +381,13 @@ Setting.getByGroup = async function (group) {
 /**
  * Bulk update settings
  */
-Setting.bulkUpdate = async function (updates) {
+Setting.bulkUpdate = async function (updates, clientId) {
+  if (!clientId) throw new Error("ClientId required for bulkUpdate");
   const results = [];
 
   for (const [key, value] of Object.entries(updates)) {
     try {
-      const setting = await this.findOne({ where: { key } });
+      const setting = await this.findOne({ where: { key, clientId } });
 
       if (setting) {
         const stringValue =

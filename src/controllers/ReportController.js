@@ -1390,15 +1390,16 @@ class ReportController {
   static async getSummary(req, res, next) {
     try {
       const { startDate, endDate } = req.query;
+      const clientId = req.user.clientId; // ✅ ADDED: Get clientId for isolation
 
-      const whereClause = {};
+      const dateWhereClause = {};
       if (startDate && endDate) {
-        whereClause.createdAt = {
+        dateWhereClause.createdAt = {
           [Op.between]: [new Date(startDate), new Date(endDate)],
         };
       }
 
-      // Sales Summary
+      // Sales Summary - ✅ FIXED: Added clientId
       const salesSummary = await Sale.findOne({
         attributes: [
           [sequelize.fn("COUNT", sequelize.col("id")), "totalTransactions"],
@@ -1422,22 +1423,27 @@ class ReportController {
             "kreditRevenue",
           ],
         ],
-        where: startDate && endDate ? { saleDate: whereClause.createdAt } : {},
+        where: {
+          clientId, // ✅ FIXED
+          ...(startDate && endDate ? { saleDate: dateWhereClause.createdAt } : {}),
+        },
         raw: true,
       });
 
-      // Purchase Summary
+      // Purchase Summary - ✅ FIXED: Added clientId
       const purchaseSummary = await Purchase.findOne({
         attributes: [
           [sequelize.fn("COUNT", sequelize.col("id")), "totalPurchases"],
           [sequelize.fn("SUM", sequelize.col("total_amount")), "totalSpending"],
         ],
-        where:
-          startDate && endDate ? { purchaseDate: whereClause.createdAt } : {},
+        where: {
+          clientId, // ✅ FIXED
+          ...(startDate && endDate ? { purchaseDate: dateWhereClause.createdAt } : {}),
+        },
         raw: true,
       });
 
-      // Debt Summary (Hutang ke Supplier)
+      // Debt Summary (Hutang ke Supplier) - ✅ FIXED: Added clientId
       const debtSummary = await SupplierDebt.findOne({
         attributes: [
           [sequelize.fn("SUM", sequelize.col("remaining_amount")), "totalDebt"],
@@ -1451,10 +1457,11 @@ class ReportController {
             "pendingCount",
           ],
         ],
+        where: { clientId }, // ✅ FIXED
         raw: true,
       });
 
-      // Receivable Summary (Piutang dari Member)
+      // Receivable Summary (Piutang dari Member) - ✅ FIXED: Added clientId
       const receivableSummary = await MemberDebt.findOne({
         attributes: [
           [
@@ -1471,10 +1478,11 @@ class ReportController {
             "pendingCount",
           ],
         ],
+        where: { clientId }, // ✅ FIXED
         raw: true,
       });
 
-      // Point Summary
+      // Point Summary - ✅ FIXED: Added clientId
       const pointSummary = await PointTransaction.findOne({
         attributes: [
           [
@@ -1505,11 +1513,11 @@ class ReportController {
             "totalExpired",
           ],
         ],
-        where: whereClause,
+        where: { clientId, ...dateWhereClause }, // ✅ FIXED
         raw: true,
       });
 
-      // Product Stats
+      // Product Stats - ✅ FIXED: Added clientId
       const productStats = await Product.findOne({
         attributes: [
           [sequelize.fn("COUNT", sequelize.col("id")), "totalProducts"],
@@ -1528,11 +1536,11 @@ class ReportController {
             "lowStock",
           ],
         ],
-        where: { isActive: true },
+        where: { isActive: true, clientId }, // ✅ FIXED
         raw: true,
       });
 
-      // Member Stats
+      // Member Stats - ✅ FIXED: Added clientId
       const memberStats = await Member.findOne({
         attributes: [
           [sequelize.fn("COUNT", sequelize.col("id")), "totalMembers"],
@@ -1545,16 +1553,19 @@ class ReportController {
           ],
           [sequelize.fn("SUM", sequelize.col("total_points")), "totalPoints"],
         ],
+        where: { clientId }, // ✅ FIXED
         raw: true,
       });
 
-      // Return Summary
+      // Return Summary - ✅ FIXED: Added clientId
       const purchaseReturnCount = await PurchaseReturn.count({
-        where: whereClause,
+        where: { clientId, ...dateWhereClause }, // ✅ FIXED
       });
 
-      // ✅ FIXED: Menggunakan SalesReturn (plural)
-      const salesReturnCount = await SalesReturn.count({ where: whereClause });
+      // ✅ FIXED: Menggunakan SalesReturn (plural) + Added clientId
+      const salesReturnCount = await SalesReturn.count({
+        where: { clientId, ...dateWhereClause }, // ✅ FIXED
+      });
 
       const summary = {
         sales: {

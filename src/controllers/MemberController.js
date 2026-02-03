@@ -6,15 +6,126 @@
 const Member = require("../models/Member");
 const ApiResponse = require("../utils/response");
 const { Op } = require("sequelize");
-const { REGIONS, isValidRegionCode, getRegionName } = require("../constants/regions");
+// ✅ REMOVED: No longer using hardcoded REGIONS for SaaS flexibility
+// User can now input any region name freely
 
 class MemberController {
   // ============================================
+  // POST /api/members - Create new member (ADMIN/KASIR)
+  // protected route, uses req.user.clientId
+  // ============================================
+  static async create(req, res, next) {
+    try {
+      const { nik, fullName, address, regionCode, whatsapp, gender } = req.body;
+      const { clientId } = req.user; // ✅ Always use logged in user's client
+
+      // ===== VALIDATION =====
+      const errors = {};
+
+      // NIK validation
+      if (!nik) {
+        errors.nik = ["NIK harus diisi"];
+      } else if (nik.length !== 16) {
+        errors.nik = ["NIK harus 16 digit"];
+      } else if (!/^\d+$/.test(nik)) {
+        errors.nik = ["NIK hanya boleh berisi angka"];
+      }
+
+      // Full Name validation
+      if (!fullName) {
+        errors.fullName = ["Nama lengkap harus diisi"];
+      } else if (fullName.length < 3) {
+        errors.fullName = ["Nama lengkap minimal 3 karakter"];
+      } else if (fullName.length > 100) {
+        errors.fullName = ["Nama lengkap maksimal 100 karakter"];
+      }
+
+      // Address validation
+      if (!address) {
+        errors.address = ["Alamat harus diisi"];
+      } else if (address.length < 10) {
+        errors.address = ["Alamat minimal 10 karakter"];
+      } else if (address.length > 255) {
+        errors.address = ["Alamat maksimal 255 karakter"];
+      }
+
+      // Region validation - now accepts any string up to 50 chars
+      if (!regionCode) {
+        errors.regionCode = ["Wilayah harus diisi"];
+      } else if (regionCode.length > 50) {
+        errors.regionCode = ["Wilayah maksimal 50 karakter"];
+      }
+
+      // WhatsApp validation (max 15 chars)
+      if (!whatsapp) {
+        errors.whatsapp = ["Nomor WhatsApp harus diisi"];
+      } else if (whatsapp.length > 15) {
+        errors.whatsapp = ["Nomor WhatsApp maksimal 15 karakter"];
+      } else if (!/^08\d{8,11}$/.test(whatsapp)) {
+        errors.whatsapp = ["Format nomor WhatsApp tidak valid (contoh: 081234567890)"];
+      }
+
+      // Gender validation
+      if (!gender) {
+        errors.gender = ["Jenis kelamin harus dipilih"];
+      } else if (!["Laki-laki", "Perempuan"].includes(gender)) {
+        errors.gender = ["Jenis kelamin harus Laki-laki atau Perempuan"];
+      }
+
+      // If there are validation errors, return early
+      if (Object.keys(errors).length > 0) {
+        return ApiResponse.validationError(res, errors, "Data tidak valid");
+      }
+
+      // ===== CHECK NIK EXISTS (Per Client) =====
+      const existingNik = await Member.findOne({ where: { nik, clientId } }); // ✅ Scope by client
+      if (existingNik) {
+        return ApiResponse.error(res, "NIK sudah terdaftar", 422, {
+          nik: ["NIK sudah terdaftar"],
+        });
+      }
+
+      // ===== GENERATE UNIQUE ID =====
+      const uniqueId = await Member.generateUniqueId(regionCode, clientId);
+
+      // ===== REGION NAME = same as input =====
+      const regionName = regionCode; // SaaS: use input directly
+
+      // ===== CREATE MEMBER =====
+      const member = await Member.create({
+        clientId,
+        uniqueId,
+        nik,
+        fullName,
+        address,
+        regionCode,
+        regionName,
+        whatsapp,
+        gender,
+        totalDebt: 0,
+        totalTransactions: 0,
+        monthlySpending: 0,
+        totalPoints: 0,
+        isActive: true,
+      });
+
+      console.log(`✅ Member created (Admin): ${member.uniqueId} - ${member.fullName}`);
+
+      return ApiResponse.created(res, member, "Anggota berhasil dibuat");
+    } catch (error) {
+      console.error("❌ Error creating member:", error);
+      next(error);
+    }
+  }
+
+  // ============================================
+
   // POST /api/members/register - Register new member (PUBLIC)
   // ============================================
   static async register(req, res, next) {
     try {
-      const { nik, fullName, address, regionCode, whatsapp, gender, clientId } = req.body; // ✅ clientId required from body
+      const { nik, fullName, address, regionCode, whatsapp, gender, clientId } = req.body;
+      console.log("👉 Register Body:", req.body); // DEBUG LOG
 
       // ===== VALIDATION =====
       const errors = {};
@@ -50,11 +161,11 @@ class MemberController {
         errors.address = ["Alamat maksimal 255 karakter"];
       }
 
-      // Region Code validation (use constant)
+      // Region validation - now accepts any string up to 50 chars
       if (!regionCode) {
-        errors.regionCode = ["Wilayah harus dipilih"];
-      } else if (!isValidRegionCode(regionCode)) {
-        errors.regionCode = ["Kode wilayah tidak valid"];
+        errors.regionCode = ["Wilayah harus diisi"];
+      } else if (regionCode.length > 50) {
+        errors.regionCode = ["Wilayah maksimal 50 karakter"];
       }
 
       // WhatsApp validation (max 15 chars)
@@ -78,8 +189,8 @@ class MemberController {
         return ApiResponse.validationError(res, errors, "Data tidak valid");
       }
 
-      // ===== CHECK NIK EXISTS =====
-      const existingNik = await Member.findOne({ where: { nik } });
+      // ===== CHECK NIK EXISTS (Per Client) =====
+      const existingNik = await Member.findOne({ where: { nik, clientId } }); // ✅ Scope by client
       if (existingNik) {
         return ApiResponse.error(res, "NIK sudah terdaftar", 422, {
           nik: ["NIK sudah terdaftar"],
@@ -89,8 +200,8 @@ class MemberController {
       // ===== GENERATE UNIQUE ID =====
       const uniqueId = await Member.generateUniqueId(regionCode, clientId); // ✅ Pass clientId
 
-      // ===== GET REGION NAME (from constant) =====
-      const regionName = getRegionName(regionCode);
+      // ===== REGION NAME = same as input =====
+      const regionName = regionCode; // SaaS: use input directly
 
       // ===== CREATE MEMBER =====
       const member = await Member.create({
@@ -274,8 +385,9 @@ class MemberController {
     try {
       const { id } = req.params;
       const { fullName, address, regionCode, whatsapp, gender, isActive } = req.body;
+      const clientId = req.user.clientId; // ✅ Isolation
 
-      const member = await Member.findByPk(id);
+      const member = await Member.findOne({ where: { id, clientId } }); // ✅ Scope by client
 
       if (!member) {
         return ApiResponse.notFound(res, "Anggota tidak ditemukan");
@@ -300,8 +412,8 @@ class MemberController {
         }
       }
 
-      if (regionCode && !isValidRegionCode(regionCode)) {
-        errors.regionCode = ["Kode wilayah tidak valid"];
+      if (regionCode && regionCode.length > 50) {
+        errors.regionCode = ["Wilayah maksimal 50 karakter"];
       }
 
       if (whatsapp) {
@@ -332,7 +444,7 @@ class MemberController {
       if (regionCode && regionCode !== member.regionCode) {
         const newUniqueId = await Member.generateUniqueId(regionCode);
         updateData.regionCode = regionCode;
-        updateData.regionName = getRegionName(regionCode);
+        updateData.regionName = regionCode; // SaaS: use input directly
         updateData.uniqueId = newUniqueId;
       }
 
@@ -353,8 +465,9 @@ class MemberController {
   static async delete(req, res, next) {
     try {
       const { id } = req.params;
+      const clientId = req.user.clientId; // ✅ Isolation
 
-      const member = await Member.findByPk(id);
+      const member = await Member.findOne({ where: { id, clientId } }); // ✅ Scope by client
 
       if (!member) {
         return ApiResponse.notFound(res, "Anggota tidak ditemukan");
@@ -378,8 +491,9 @@ class MemberController {
   static async toggleActive(req, res, next) {
     try {
       const { id } = req.params;
+      const clientId = req.user.clientId; // ✅ Isolation
 
-      const member = await Member.findByPk(id);
+      const member = await Member.findOne({ where: { id, clientId } }); // ✅ Scope by client
 
       if (!member) {
         return ApiResponse.notFound(res, "Anggota tidak ditemukan");

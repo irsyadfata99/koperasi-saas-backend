@@ -328,7 +328,8 @@ class StockController {
       });
 
       // Load complete data
-      const completeAdjustment = await StockAdjustment.findByPk(adjustment.id, {
+      const completeAdjustment = await StockAdjustment.findOne({
+        where: { id: adjustment.id, clientId: req.user.clientId },
         include: [
           {
             model: Product,
@@ -366,7 +367,9 @@ class StockController {
       const { id } = req.params;
       const { notes } = req.body;
 
-      const adjustment = await StockAdjustment.findByPk(id);
+      const clientId = req.user.clientId; // ✅ Isolation
+
+      const adjustment = await StockAdjustment.findOne({ where: { id, clientId } });
 
       if (!adjustment) {
         return ApiResponse.notFound(res, "Adjustment tidak ditemukan");
@@ -433,7 +436,9 @@ class StockController {
         );
       }
 
-      const adjustment = await StockAdjustment.findByPk(id);
+      const clientId = req.user.clientId; // ✅ Isolation
+
+      const adjustment = await StockAdjustment.findOne({ where: { id, clientId } });
 
       if (!adjustment) {
         return ApiResponse.notFound(res, "Adjustment tidak ditemukan");

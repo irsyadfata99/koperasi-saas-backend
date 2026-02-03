@@ -20,7 +20,8 @@ const returnRoutes = require("./returnRoutes");
 const pointRoutes = require("./pointRoutes");
 const reportRoutes = require("./reportRoutes");
 const clientRoutes = require("./clientRoutes");
-const userRoutes = require("./userRoutes"); // ✨ NEW!
+const userRoutes = require("./userRoutes");
+const settingRoutes = require("./settingRoutes"); // ✨ NEW!
 
 // ============================================
 // HEALTH CHECK
@@ -52,7 +53,8 @@ router.use("/returns", returnRoutes);
 router.use("/points", pointRoutes);
 router.use("/reports", reportRoutes);
 router.use("/clients", clientRoutes);
-router.use("/users", userRoutes); // ✨ NEW!
+router.use("/users", userRoutes);
+router.use("/settings", settingRoutes); // ✨ NEW!
 
 // ============================================
 // API INFO (Root endpoint)
@@ -77,7 +79,8 @@ router.get("/", (req, res) => {
       points: "/api/points",
       reports: "/api/reports",
       clients: "/api/clients",
-      users: "/api/users", // ✨ NEW!
+      users: "/api/users",
+      settings: "/api/settings", // ✨ NEW!
     },
     documentation: "See README.md for API documentation",
   });

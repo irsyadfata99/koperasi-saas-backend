@@ -291,8 +291,10 @@ const startServer = async () => {
 
     await testConnection();
 
+    // ⚠️ TEMP FIX: Disable alter mode to avoid constraint error
+    // Set ALTER_ENABLED=true in .env to re-enable when database is fixed
     const syncOptions = {
-      alter: process.env.NODE_ENV !== "production",
+      alter: process.env.ALTER_ENABLED === "true" && process.env.NODE_ENV !== "production",
     };
 
     await sequelize.sync(syncOptions);

@@ -312,15 +312,16 @@ class PointController {
    */
   static async getSettings(req, res, next) {
     try {
-      const pointEnabled = (await Setting.get("point_enabled")) || true;
-      const pointPerAmount = (await Setting.get("point_per_rupiah")) || 1000;
+      const clientId = req.user.clientId;
+      const pointEnabled = (await Setting.get("point_enabled", clientId)) || true;
+      const pointPerAmount = (await Setting.get("point_per_rupiah", clientId)) || 1000;
       const minTransactionForPoints =
-        (await Setting.get("min_transaction_for_points")) || 50000;
+        (await Setting.get("min_transaction_for_points", clientId)) || 50000;
       const pointExpiryMonths =
-        (await Setting.get("point_expiry_months")) || 12;
+        (await Setting.get("point_expiry_months", clientId)) || 12;
       const minPointsToRedeem =
-        (await Setting.get("min_points_to_redeem")) || 100;
-      const pointValue = (await Setting.get("point_value")) || 1000;
+        (await Setting.get("min_points_to_redeem", clientId)) || 100;
+      const pointValue = (await Setting.get("point_value", clientId)) || 1000;
 
       const settings = {
         pointEnabled: pointEnabled === true || pointEnabled === "true",
@@ -410,9 +411,11 @@ class PointController {
       }
 
       // Get settings
-      const pointPerAmount = (await Setting.get("point_per_rupiah")) || 1000;
+      // Get settings
+      const clientId = req.user.clientId;
+      const pointPerAmount = (await Setting.get("point_per_rupiah", clientId)) || 1000;
       const minTransactionForPoints =
-        (await Setting.get("min_transaction_for_points")) || 50000;
+        (await Setting.get("min_transaction_for_points", clientId)) || 50000;
 
       // Check if transaction qualifies for points
       if (totalAmount < minTransactionForPoints) {
@@ -476,8 +479,9 @@ class PointController {
       }
 
       const currentPoints = member.totalPoints || 0;
-      const minPoints = (await Setting.get("min_points_to_redeem")) || 100;
-      const pointValue = (await Setting.get("point_value")) || 1000;
+      const clientId = req.user.clientId;
+      const minPoints = (await Setting.get("min_points_to_redeem", clientId)) || 100;
+      const pointValue = (await Setting.get("point_value", clientId)) || 1000;
       const maxRedeemPercentage = 50; // Max 50% of transaction
 
       const errors = [];
@@ -555,7 +559,8 @@ class PointController {
       }
 
       // Check minimum points
-      const minPoints = (await Setting.get("min_points_to_redeem")) || 100;
+      // Check minimum points
+      const minPoints = (await Setting.get("min_points_to_redeem", req.user.clientId)) || 100;
       if (points < minPoints) {
         await t.rollback();
         return ApiResponse.validationError(
@@ -632,6 +637,7 @@ class PointController {
         await Setting.set(
           "point_enabled",
           pointEnabled,
+          req.user.clientId,
           "BOOLEAN",
           "TRANSACTION",
           "Enable/disable point system"
@@ -642,6 +648,7 @@ class PointController {
         await Setting.set(
           "point_per_rupiah",
           pointPerAmount,
+          req.user.clientId,
           "NUMBER",
           "TRANSACTION",
           "Points per rupiah (1 point per X rupiah)"
@@ -652,6 +659,7 @@ class PointController {
         await Setting.set(
           "min_transaction_for_points",
           minTransactionForPoints,
+          req.user.clientId,
           "NUMBER",
           "TRANSACTION",
           "Minimum transaction amount to earn points"
@@ -662,6 +670,7 @@ class PointController {
         await Setting.set(
           "point_expiry_months",
           pointExpiryMonths,
+          req.user.clientId,
           "NUMBER",
           "TRANSACTION",
           "Point expiry duration in months"
@@ -672,6 +681,7 @@ class PointController {
         await Setting.set(
           "min_points_to_redeem",
           minPointsToRedeem,
+          req.user.clientId,
           "NUMBER",
           "TRANSACTION",
           "Minimum points required for redemption"
@@ -682,6 +692,7 @@ class PointController {
         await Setting.set(
           "point_value",
           pointValue,
+          req.user.clientId,
           "NUMBER",
           "TRANSACTION",
           "Point value in rupiah (1 point = X rupiah)"
@@ -689,14 +700,15 @@ class PointController {
       }
 
       // Get updated settings
+      const clientId = req.user.clientId;
       const updatedSettings = {
-        pointEnabled: (await Setting.get("point_enabled")) || true,
-        pointPerAmount: (await Setting.get("point_per_rupiah")) || 1000,
+        pointEnabled: (await Setting.get("point_enabled", clientId)) || true,
+        pointPerAmount: (await Setting.get("point_per_rupiah", clientId)) || 1000,
         minTransactionForPoints:
-          (await Setting.get("min_transaction_for_points")) || 50000,
-        pointExpiryMonths: (await Setting.get("point_expiry_months")) || 12,
-        minPointsToRedeem: (await Setting.get("min_points_to_redeem")) || 100,
-        pointValue: (await Setting.get("point_value")) || 1000,
+          (await Setting.get("min_transaction_for_points", clientId)) || 50000,
+        pointExpiryMonths: (await Setting.get("point_expiry_months", clientId)) || 12,
+        minPointsToRedeem: (await Setting.get("min_points_to_redeem", clientId)) || 100,
+        pointValue: (await Setting.get("point_value", clientId)) || 1000,
       };
 
       console.log(`✅ Point settings updated by ${req.user.name}`);

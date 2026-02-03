@@ -9,6 +9,7 @@ router.use(authenticate);
 // List All Users & Detail
 // Accessible by SUPER_ADMIN & ADMIN
 router.get("/", authorize(["SUPER_ADMIN", "ADMIN"]), UserController.getAll);
+router.post("/", authorize(["SUPER_ADMIN"]), UserController.create);
 router.get("/:id", authorize(["SUPER_ADMIN", "ADMIN"]), UserController.getById);
 
 // Update & Delete

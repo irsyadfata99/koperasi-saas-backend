@@ -147,9 +147,10 @@ function applyRounding(points, rounding) {
  * @param {array} items - Array of items dengan structure: [{ productId, quantity, sellingPrice, subtotal }]
  * @returns {Promise<object>} - { totalPoints, itemsWithPoints: [...] }
  */
-async function calculateTransactionPoints(items) {
+async function calculateTransactionPoints(items, clientId) {
   // Get point settings
-  const pointEnabled = await Setting.get("point_enabled", true);
+  if (!clientId) throw new Error("ClientId required for calculateTransactionPoints");
+  const pointEnabled = await Setting.get("point_enabled", clientId, true);
 
   // If point system disabled, return 0
   if (!pointEnabled) {
@@ -162,10 +163,10 @@ async function calculateTransactionPoints(items) {
     };
   }
 
-  const mode = (await Setting.get("point_system_mode", "GLOBAL")).toUpperCase();
-  const globalRate = parseFloat(await Setting.get("point_per_amount", 1000));
-  const rounding = (await Setting.get("point_decimal_rounding", "DOWN")).toUpperCase();
-  const minTransaction = parseFloat(await Setting.get("min_transaction_for_points", 0));
+  const mode = (await Setting.get("point_system_mode", clientId, "GLOBAL")).toUpperCase();
+  const globalRate = parseFloat(await Setting.get("point_per_amount", clientId, 1000));
+  const rounding = (await Setting.get("point_decimal_rounding", clientId, "DOWN")).toUpperCase();
+  const minTransaction = parseFloat(await Setting.get("min_transaction_for_points", clientId, 0));
 
   // ✅ FIX: Use Decimal for total amount calculation
   let totalAmount = new Decimal(0);
@@ -312,8 +313,8 @@ function validatePointRedemption(memberPoints, pointsToRedeem, transactionAmount
  * @param {array} items - Cart items
  * @returns {Promise<object>} - Preview calculation
  */
-async function getPointPreview(items) {
-  const result = await calculateTransactionPoints(items);
+async function getPointPreview(items, clientId) {
+  const result = await calculateTransactionPoints(items, clientId);
 
   return {
     totalPoints: result.totalPoints,

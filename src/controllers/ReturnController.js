@@ -188,7 +188,10 @@ class ReturnController {
       }
 
       // Get purchase
-      const purchase = await Purchase.findByPk(purchaseId, { transaction: t });
+      const purchase = await Purchase.findOne({
+        where: { id: purchaseId, clientId: req.user.clientId }, // ✅ Check owner
+        transaction: t,
+      });
       if (!purchase) {
         await t.rollback();
         return ApiResponse.error(res, "Purchase tidak ditemukan", 404);
@@ -199,7 +202,8 @@ class ReturnController {
       const processedItems = [];
 
       for (const item of items) {
-        const product = await Product.findByPk(item.productId, {
+        const product = await Product.findOne({
+          where: { id: item.productId, clientId: req.user.clientId }, // ✅ Check owner
           transaction: t,
         });
 
@@ -307,7 +311,8 @@ class ReturnController {
       await t.commit();
 
       // Load complete data (after commit)
-      const completeReturn = await PurchaseReturn.findByPk(purchaseReturn.id, {
+      const completeReturn = await PurchaseReturn.findOne({
+        where: { id: purchaseReturn.id, clientId: req.user.clientId },
         include: [
           {
             model: PurchaseReturnItem,
@@ -361,7 +366,8 @@ class ReturnController {
       const { id } = req.params;
       const { notes } = req.body;
 
-      const purchaseReturn = await PurchaseReturn.findByPk(id, {
+      const purchaseReturn = await PurchaseReturn.findOne({
+        where: { id, clientId: req.user.clientId }, // ✅ Isolation
         include: [
           {
             model: Purchase,
@@ -429,7 +435,8 @@ class ReturnController {
       await t.commit();
 
       // Load updated data (after commit)
-      const updatedReturn = await PurchaseReturn.findByPk(id, {
+      const updatedReturn = await PurchaseReturn.findOne({
+        where: { id, clientId: req.user.clientId },
         include: [
           {
             model: Supplier,
@@ -475,7 +482,8 @@ class ReturnController {
         return ApiResponse.error(res, "Alasan penolakan harus diisi", 422);
       }
 
-      const purchaseReturn = await PurchaseReturn.findByPk(id, {
+      const purchaseReturn = await PurchaseReturn.findOne({
+        where: { id, clientId: req.user.clientId }, // ✅ Isolation
         include: [
           {
             model: PurchaseReturnItem,
@@ -708,7 +716,10 @@ class ReturnController {
       }
 
       // Get sale
-      const sale = await Sale.findByPk(saleId, { transaction: t });
+      const sale = await Sale.findOne({
+        where: { id: saleId, clientId: req.user.clientId }, // ✅ Check owner
+        transaction: t,
+      });
       if (!sale) {
         await t.rollback();
         return ApiResponse.error(res, "Transaksi tidak ditemukan", 404);
@@ -719,7 +730,8 @@ class ReturnController {
       const processedItems = [];
 
       for (const item of items) {
-        const product = await Product.findByPk(item.productId, {
+        const product = await Product.findOne({
+          where: { id: item.productId, clientId: req.user.clientId }, // ✅ Check owner
           transaction: t,
         });
 
@@ -818,7 +830,8 @@ class ReturnController {
       await t.commit();
 
       // Load complete data (after commit)
-      const completeReturn = await SalesReturn.findByPk(salesReturn.id, {
+      const completeReturn = await SalesReturn.findOne({
+        where: { id: salesReturn.id, clientId: req.user.clientId },
         include: [
           {
             model: SalesReturnItem,
@@ -872,7 +885,8 @@ class ReturnController {
       const { id } = req.params;
       const { notes } = req.body;
 
-      const salesReturn = await SalesReturn.findByPk(id, {
+      const salesReturn = await SalesReturn.findOne({
+        where: { id, clientId: req.user.clientId }, // ✅ Isolation
         include: [
           {
             model: Sale,
@@ -942,7 +956,8 @@ class ReturnController {
       await t.commit();
 
       // Load updated data (after commit)
-      const updatedReturn = await SalesReturn.findByPk(id, {
+      const updatedReturn = await SalesReturn.findOne({
+        where: { id, clientId: req.user.clientId },
         include: [
           {
             model: Member,
@@ -986,7 +1001,8 @@ class ReturnController {
         return ApiResponse.error(res, "Alasan penolakan harus diisi", 422);
       }
 
-      const salesReturn = await SalesReturn.findByPk(id, {
+      const salesReturn = await SalesReturn.findOne({
+        where: { id, clientId: req.user.clientId }, // ✅ Isolation
         include: [
           {
             model: SalesReturnItem,

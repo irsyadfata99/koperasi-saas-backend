@@ -835,9 +835,11 @@ class PaymentController {
   static async printDebtPaymentReceipt(req, res, next) {
     try {
       const { debtId, paymentId } = req.params;
+      const clientId = req.user.clientId; // ✅ Isolation
 
       // Get debt with all relations
-      const debt = await MemberDebt.findByPk(debtId, {
+      const debt = await MemberDebt.findOne({
+        where: { id: debtId, clientId },
         include: [
           {
             model: Member,
@@ -886,6 +888,7 @@ class PaymentController {
           notes: payment.notes,
         },
         user: user,
+        clientId: clientId, // ✅ Pass clientId
       });
 
       console.log(`✅ Generated debt payment receipt: ${payment.receiptNumber} for ${debt.member.fullName}`);

@@ -86,6 +86,70 @@ class UserController {
     }
 
     // ============================================
+    // POST /api/users - Create new user
+    // Access: SUPER_ADMIN only
+    // ============================================
+    static async create(req, res, next) {
+        try {
+            const { name, username, email, password, role, clientId, isActive = true } = req.body;
+            const currentUser = req.user;
+
+            // Authorization: Only SUPER_ADMIN can create users directly
+            if (currentUser.role !== "SUPER_ADMIN") {
+                return ApiResponse.error(res, "Unauthorized - Only SUPER_ADMIN can create users", 403);
+            }
+
+            // Validation
+            if (!username || !password || !role || !clientId) {
+                return ApiResponse.validationError(res, {
+                    general: ["Username, password, role, and clientId are required"]
+                }, "Validation failed");
+            }
+
+            // Check client exists
+            const client = await Client.findByPk(clientId);
+            if (!client) {
+                return ApiResponse.notFound(res, "Client tidak ditemukan");
+            }
+
+            // Check username uniqueness
+            const existingUsername = await User.findOne({ where: { username } });
+            if (existingUsername) {
+                return ApiResponse.validationError(res, { username: ["Username sudah digunakan"] }, "Username duplicate");
+            }
+
+            // Check email uniqueness if provided
+            if (email) {
+                const existingEmail = await User.findOne({ where: { email } });
+                if (existingEmail) {
+                    return ApiResponse.validationError(res, { email: ["Email sudah digunakan"] }, "Email duplicate");
+                }
+            }
+
+            // Create user
+            const user = await User.create({
+                name: name || username,
+                username,
+                email: email || null,
+                password, // Model hook will hash
+                role,
+                clientId,
+                isActive
+            });
+
+            return ApiResponse.success(res, {
+                id: user.id,
+                name: user.name,
+                username: user.username,
+                role: user.role,
+                clientId: user.clientId
+            }, "User berhasil dibuat", 201);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    // ============================================
     // GET /api/users/:id - Get user by ID
     // ============================================
     static async getById(req, res, next) {

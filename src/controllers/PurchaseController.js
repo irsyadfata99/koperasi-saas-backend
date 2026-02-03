@@ -33,6 +33,10 @@ class PurchaseController {
         notes,
       } = req.body;
 
+
+      console.log("👉 Purchase Create User:", req.user); // DEBUG LOG
+      console.log("👉 Purchase Create Body:", req.body); // DEBUG LOG
+
       const userId = req.user.id;
 
       // ===== VALIDATION =====
@@ -47,7 +51,7 @@ class PurchaseController {
       }
 
       // Get supplier
-      const supplier = await Supplier.findByPk(supplierId);
+      const supplier = await Supplier.findOne({ where: { id: supplierId, clientId: req.user.clientId }, transaction: t }); // ✅ Check owner
       if (!supplier) {
         await t.rollback();
         return ApiResponse.error(res, "Supplier tidak ditemukan", 404);
@@ -78,7 +82,8 @@ class PurchaseController {
       const processedItems = [];
 
       for (const item of items) {
-        const product = await Product.findByPk(item.productId, {
+        const product = await Product.findOne({
+          where: { id: item.productId, clientId: req.user.clientId }, // ✅ Check owner
           transaction: t,
         });
 
@@ -140,6 +145,7 @@ class PurchaseController {
                 ? "PARTIAL"
                 : "PENDING",
           notes,
+          clientId: req.user.clientId,
         },
         { transaction: t }
       );
@@ -157,6 +163,7 @@ class PurchaseController {
             sellingPrice: item.sellingPrice,
             expDate: item.expDate,
             subtotal: item.subtotal,
+            clientId: req.user.clientId, // ✅ ADDED: Include clientId
           },
           { transaction: t }
         );
@@ -188,6 +195,7 @@ class PurchaseController {
             referenceId: purchase.id,
             notes: `Pembelian dari ${supplier.name}`,
             createdBy: userId,
+            clientId: req.user.clientId, // ✅ ADDED: Include clientId
           },
           { transaction: t }
         );
@@ -222,7 +230,8 @@ class PurchaseController {
       await t.commit();
 
       // ===== LOAD COMPLETE DATA FOR RESPONSE =====
-      const completePurchase = await Purchase.findByPk(purchase.id, {
+      const completePurchase = await Purchase.findOne({
+        where: { id: purchase.id, clientId: req.user.clientId },
         include: [
           {
             model: PurchaseItem,
@@ -537,7 +546,10 @@ class PurchaseController {
         );
       }
 
-      const purchase = await Purchase.findByPk(id, {
+      const clientId = req.user.clientId; // ✅ Isolation
+
+      const purchase = await Purchase.findOne({
+        where: { id, clientId }, // ✅ Filter
         include: [
           {
             model: SupplierDebt,

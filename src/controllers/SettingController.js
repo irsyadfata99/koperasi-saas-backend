@@ -19,7 +19,7 @@ class SettingController {
       if (group) {
         // Get by group
         settings = await Setting.findAll({
-          where: { group },
+          where: { group, clientId: req.user.clientId },
           order: [
             ["group", "ASC"],
             ["key", "ASC"],
@@ -28,6 +28,7 @@ class SettingController {
       } else {
         // Get all
         settings = await Setting.findAll({
+          where: { clientId: req.user.clientId },
           order: [
             ["group", "ASC"],
             ["key", "ASC"],
@@ -68,8 +69,9 @@ class SettingController {
   static async getByKey(req, res, next) {
     try {
       const { key } = req.params;
+      const clientId = req.user.clientId;
 
-      const setting = await Setting.findOne({ where: { key } });
+      const setting = await Setting.findOne({ where: { key, clientId } });
 
       if (!setting) {
         return ApiResponse.notFound(res, "Setting tidak ditemukan");
@@ -112,11 +114,18 @@ class SettingController {
         return ApiResponse.error(res, "Value maksimal 1000 karakter", 422);
       }
 
-      const setting = await Setting.findOne({ where: { key } });
+      const setting = await Setting.findOne({ where: { key, clientId: req.user.clientId } });
 
       if (!setting) {
         // Create new setting if not exists
-        const newSetting = await Setting.set(key, value, type || "TEXT", group || "GENERAL", description);
+        const newSetting = await Setting.set(
+          key,
+          value,
+          req.user.clientId,
+          type || "TEXT",
+          group || "GENERAL",
+          description
+        );
 
         return ApiResponse.created(
           res,
@@ -190,7 +199,14 @@ class SettingController {
             continue;
           }
 
-          const setting = await Setting.set(key, value, type || "TEXT", group || "GENERAL", description);
+          const setting = await Setting.set(
+            key,
+            value,
+            req.user.clientId,
+            type || "TEXT",
+            group || "GENERAL",
+            description
+          );
 
           results.push({
             key: setting.key,
@@ -217,9 +233,11 @@ class SettingController {
   // ============================================
   static async initialize(req, res, next) {
     try {
-      await Setting.initializeDefaults();
+      const clientId = req.user.clientId;
+      await Setting.initializeDefaults(clientId);
 
       const settings = await Setting.findAll({
+        where: { clientId },
         order: [
           ["group", "ASC"],
           ["key", "ASC"],
@@ -238,8 +256,9 @@ class SettingController {
   static async delete(req, res, next) {
     try {
       const { key } = req.params;
+      const clientId = req.user.clientId;
 
-      const setting = await Setting.findOne({ where: { key } });
+      const setting = await Setting.findOne({ where: { key, clientId } });
 
       if (!setting) {
         return ApiResponse.notFound(res, "Setting tidak ditemukan");

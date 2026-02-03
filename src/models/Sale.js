@@ -187,7 +187,7 @@ Sale.afterCreate(async (sale, options) => {
       sellingPrice: parseFloat(item.sellingPrice),
     }));
 
-    const pointResult = await calculateTransactionPoints(items);
+    const pointResult = await calculateTransactionPoints(items, sale.clientId);
 
     if (pointResult.totalPoints > 0) {
       await PointTransaction.recordEarn(

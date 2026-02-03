@@ -207,6 +207,7 @@ class AuthController {
           token,
           user: {
             id: user.id,
+            clientId: user.clientId, // ✅ ADDED: Include clientId for frontend
             name: user.name,
             email: user.email,
             role: user.role,
