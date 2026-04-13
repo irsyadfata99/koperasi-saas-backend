@@ -1244,7 +1244,8 @@ class ReportController {
       } = req.query;
 
       const offset = (parseInt(page) - 1) * parseInt(limit);
-      const whereClause = {};
+      const clientId = req.user.clientId; // ✅ FIX: isolasi per toko
+      const whereClause = { clientId }; // ✅ FIX: filter by clientId
 
       if (memberId) {
         whereClause.memberId = memberId;
@@ -1281,7 +1282,7 @@ class ReportController {
               "regionName",
               "totalPoints",
             ],
-            where: memberWhereClause,
+            where: { ...memberWhereClause, clientId }, // ✅ FIX: scope member to same client
           },
           {
             model: Sale,

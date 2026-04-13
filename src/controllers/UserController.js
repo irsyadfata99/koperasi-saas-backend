@@ -94,20 +94,30 @@ class UserController {
             const { name, username, email, password, role, clientId, isActive = true } = req.body;
             const currentUser = req.user;
 
-            // Authorization: Only SUPER_ADMIN can create users directly
+            // Authorization Logic
+            let finalClientId = clientId;
+            
             if (currentUser.role !== "SUPER_ADMIN") {
-                return ApiResponse.error(res, "Unauthorized - Only SUPER_ADMIN can create users", 403);
+                if (currentUser.role !== "ADMIN") {
+                    return ApiResponse.error(res, "Unauthorized - Hanya SUPER_ADMIN atau ADMIN yang dapat membuat user", 403);
+                }
+                
+                // ADMIN can only create KASIR or STAFF, and only for their own clientId
+                if (role === "SUPER_ADMIN" || role === "ADMIN") {
+                    return ApiResponse.error(res, "Unauthorized - ADMIN tidak dapat membuat user dengan role ini", 403);
+                }
+                finalClientId = currentUser.clientId;
             }
 
             // Validation
-            if (!username || !password || !role || !clientId) {
+            if (!username || !password || !role || !finalClientId) {
                 return ApiResponse.validationError(res, {
                     general: ["Username, password, role, and clientId are required"]
                 }, "Validation failed");
             }
 
             // Check client exists
-            const client = await Client.findByPk(clientId);
+            const client = await Client.findByPk(finalClientId);
             if (!client) {
                 return ApiResponse.notFound(res, "Client tidak ditemukan");
             }
@@ -133,7 +143,7 @@ class UserController {
                 email: email || null,
                 password, // Model hook will hash
                 role,
-                clientId,
+                clientId: finalClientId,
                 isActive
             });
 
@@ -215,7 +225,7 @@ class UserController {
 
             // Update fields
             if (name) user.name = name;
-            if (email) user.email = email;
+            if (email !== undefined) user.email = email || null;
             if (role) user.role = role;
             if (isActive !== undefined) user.isActive = isActive;
 
@@ -261,6 +271,10 @@ class UserController {
             await user.destroy();
             return ApiResponse.success(res, null, "User berhasil dihapus");
         } catch (error) {
+            // Handle foreign key constraint error
+            if (error.name === 'SequelizeForeignKeyConstraintError') {
+                return ApiResponse.error(res, "Gagal menghapus user karena masih terhubung dengan data transaksi. Silakan set status menjadi INACTIVE saja.", 400);
+            }
             next(error);
         }
     }

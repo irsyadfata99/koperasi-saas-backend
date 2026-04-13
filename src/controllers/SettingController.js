@@ -116,6 +116,14 @@ class SettingController {
 
       const setting = await Setting.findOne({ where: { key, clientId: req.user.clientId } });
 
+      // ✅ ADMIN can only update COMPANY and BANK groups
+      if (setting && req.user.role !== "SUPER_ADMIN") {
+        const ADMIN_ALLOWED_GROUPS = ["COMPANY", "BANK"];
+        if (!ADMIN_ALLOWED_GROUPS.includes((setting.group || "").toUpperCase())) {
+          return ApiResponse.error(res, "Anda tidak memiliki akses untuk mengubah setting ini", 403);
+        }
+      }
+
       if (!setting) {
         // Create new setting if not exists
         const newSetting = await Setting.set(
@@ -176,9 +184,19 @@ class SettingController {
         return ApiResponse.error(res, "Settings harus berupa array", 422);
       }
 
+      // ✅ ADMIN can only update COMPANY and BANK groups
+      const ADMIN_ALLOWED_GROUPS = ["COMPANY", "BANK"];
+      const filteredSettings = req.user.role === "SUPER_ADMIN"
+        ? settings
+        : settings.filter(s => ADMIN_ALLOWED_GROUPS.includes((s.group || "").toUpperCase()));
+
+      if (filteredSettings.length === 0 && settings.length > 0) {
+        return ApiResponse.error(res, "Anda tidak memiliki akses untuk mengubah setting tersebut", 403);
+      }
+
       const results = [];
 
-      for (const item of settings) {
+      for (const item of filteredSettings) {
         const { key, value, type, group, description } = item;
 
         if (!key || value === undefined) {
@@ -186,39 +204,20 @@ class SettingController {
         }
 
         try {
-          // Convert value to string for validation
           const bulkValueString = typeof value === "object" ? JSON.stringify(value) : String(value);
 
-          // ✅ NEW: Max length validation
           if (bulkValueString.length > 1000) {
-            results.push({
-              key,
-              error: "Value maksimal 1000 karakter",
-              success: false,
-            });
+            results.push({ key, error: "Value maksimal 1000 karakter", success: false });
             continue;
           }
 
           const setting = await Setting.set(
-            key,
-            value,
-            req.user.clientId,
-            type || "TEXT",
-            group || "GENERAL",
-            description
+            key, value, req.user.clientId, type || "TEXT", group || "GENERAL", description
           );
 
-          results.push({
-            key: setting.key,
-            value: setting.getParsedValue(),
-            success: true,
-          });
+          results.push({ key: setting.key, value: setting.getParsedValue(), success: true });
         } catch (error) {
-          results.push({
-            key,
-            error: error.message,
-            success: false,
-          });
+          results.push({ key, error: error.message, success: false });
         }
       }
 

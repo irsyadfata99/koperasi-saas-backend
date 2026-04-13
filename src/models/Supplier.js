@@ -39,6 +39,15 @@ const Supplier = sequelize.define(
       defaultValue: true,
       field: "is_active",
     },
+    contactPerson: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      field: "contact_person",
+    },
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
   },
   {
     tableName: "suppliers",

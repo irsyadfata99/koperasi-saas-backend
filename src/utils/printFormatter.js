@@ -16,14 +16,14 @@ async function generateDotMatrixInvoice(saleData) {
   const { invoiceNumber, saleDate, member, items, totalAmount, discountAmount, finalAmount, dpAmount, remainingDebt, dueDate, notes, clientId } = saleData;
 
   // Get settings
-  const companyName = await Setting.get("company_name", clientId, "KOPERASI YAMUGHNI");
-  const companyAddress = await Setting.get("company_address", clientId, "Jalan Kaum No. 2 Samping Terminal Cicaheum");
-  const companyPhone = await Setting.get("company_phone", clientId, "Telepon (022) 20503787, 085877877877");
-  const companyWebsite = await Setting.get("company_website", clientId, "www.yamughni.info");
-  const companyCity = await Setting.get("company_city", clientId, "Bandung");
-  const bankName = await Setting.get("bank_name", clientId, "MANDIRI");
-  const bankAccount = await Setting.get("bank_account_number", clientId, "131-00-1687726-0");
-  const bankAccountName = await Setting.get("bank_account_name", clientId, "KOPERASI YAMUGHNI");
+  const companyName = await Setting.get("company_name", clientId, "KOPERASI YAMUGHNI") || "KOPERASI YAMUGHNI";
+  const companyAddress = await Setting.get("company_address", clientId, "") || "";
+  const companyPhone = await Setting.get("company_phone", clientId, "") || "";
+  const companyWebsite = await Setting.get("company_website", clientId, "") || "";
+  const companyCity = await Setting.get("company_city", clientId, "") || "";
+  const bankName = await Setting.get("bank_name", clientId, "MANDIRI") || "MANDIRI";
+  const bankAccount = await Setting.get("bank_account_number", clientId, "-") || "-";
+  const bankAccountName = await Setting.get("bank_account_name", clientId, "") || "";
 
   // Format date
   const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
@@ -178,8 +178,8 @@ async function generateDotMatrixInvoice(saleData) {
   <!-- Header -->
   <div class="header">
     <div style="font-weight: bold; font-size: 12pt; margin-bottom: 2mm;">${companyName}</div>
-    <div>${companyAddress}  ${companyPhone}</div>
-    <div>${companyWebsite}</div>
+    <div>${[companyAddress, companyPhone].filter(Boolean).join('  ')}</div>
+    ${companyWebsite ? `<div>${companyWebsite}</div>` : ''}
   </div>
   <div class="line"></div>
 
@@ -314,9 +314,9 @@ async function generateThermalReceipt(saleData) {
   const { invoiceNumber, saleDate, member, user, items, totalAmount, discountAmount, finalAmount, paymentReceived, changeAmount, clientId } = saleData;
 
   // Get settings
-  const companyName = await Setting.get("company_name", clientId, "KOPERASI YAMUGHNI");
-  const companyAddress = await Setting.get("company_address", clientId, "Jl. Kaum No. 2 Cicaheum");
-  const companyPhone = await Setting.get("company_phone", clientId, "Telp: (022) 20503787");
+  const companyName = await Setting.get("company_name", clientId, "KOPERASI YAMUGHNI") || "KOPERASI YAMUGHNI";
+  const companyAddress = await Setting.get("company_address", clientId, "") || "";
+  const companyPhone = await Setting.get("company_phone", clientId, "") || "";
 
   // Format date & time
   const date = new Date(saleDate);
@@ -524,8 +524,8 @@ async function generateThermalReceipt(saleData) {
 <body>
   <div class="wrapper">
   <div class="header">${companyName}</div>
-  <div class="subheader">${companyAddress}</div>
-  <div class="subheader">${companyPhone}</div>
+  ${companyAddress ? `<div class="subheader">${companyAddress}</div>` : ''}
+  ${companyPhone ? `<div class="subheader">${companyPhone}</div>` : ''}
   <div class="datetime">${formattedDate} ${formattedTime}</div>
   
   <div class="line"></div>

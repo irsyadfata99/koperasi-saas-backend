@@ -47,14 +47,11 @@ const User = sequelize.define(
     },
     email: {
       type: DataTypes.STRING(100),
-      allowNull: false,
+      allowNull: true,
       unique: {
         msg: "Email sudah digunakan",
       },
       validate: {
-        notEmpty: {
-          msg: "Email harus diisi",
-        },
         isEmail: {
           msg: "Format email tidak valid",
         },
@@ -86,7 +83,15 @@ const User = sequelize.define(
         },
         // ✅ FIX: Added strong password validation
         isStrongPassword(value) {
-          // Check minimum length
+          // Bypass strong password requirement for KASIR or STAFF
+          if (this.role === "KASIR" || this.role === "STAFF") {
+            if (value.length < 6) {
+              throw new Error("Password minimal 6 karakter untuk Kasir");
+            }
+            return true;
+          }
+
+          // Check minimum length for ADMIN/SUPER_ADMIN
           if (value.length < 8) {
             throw new Error("Password minimal 8 karakter");
           }

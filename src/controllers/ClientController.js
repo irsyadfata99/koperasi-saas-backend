@@ -294,14 +294,61 @@ class ClientController {
                 return ApiResponse.notFound(res, "Client tidak ditemukan");
             }
 
-            await client.destroy();
-
-            return ApiResponse.success(res, null, "Client berhasil dihapus");
-        } catch (error) {
-            // Handle FK constraints if needed
-            if (error.name === 'SequelizeForeignKeyConstraintError') {
-                return ApiResponse.error(res, "Tidak dapat menghapus client karena masih memiliki data terkait (User/Data lain). Silakan nonaktifkan status client saja.", 400);
+            // Guard: Hanya izinkan delete jika status INACTIVE
+            if (client.status !== "INACTIVE") {
+                return ApiResponse.error(
+                    res, 
+                    "Tidak dapat menghapus client yang masih aktif. Silakan ubah status client menjadi INACTIVE terlebih dahulu untuk menghapus semua datanya secara permanen.", 
+                    400
+                );
             }
+
+            // Execute manual cascade delete using raw queries to bypass FK constraint checks
+            const sequelize = Client.sequelize;
+            
+            await sequelize.transaction(async (t) => {
+                // Matikan FK check sementara dalam transaksi ini (database-level)
+                await sequelize.query('SET FOREIGN_KEY_CHECKS = 0', { transaction: t });
+
+                try {
+                    // Level 0: Detail detail transaksi tanpa client_id, terhubung via ID parent
+                    await sequelize.query('DELETE FROM purchase_return_items WHERE purchase_return_id IN (SELECT id FROM purchase_returns WHERE client_id = :id)', { replacements: { id: client.id }, transaction: t });
+                    await sequelize.query('DELETE FROM sales_return_items WHERE sales_return_id IN (SELECT id FROM sales_returns WHERE client_id = :id)', { replacements: { id: client.id }, transaction: t });
+                    
+                    // Level 1: Transaksi detail lanjutan dan relasi menengah
+                    const tablesL1 = ['purchase_items', 'sale_items', 'point_transactions', 'member_debts', 'supplier_debts', 'debt_payments', 'stock_movements', 'stock_adjustments', 'purchase_returns', 'sales_returns'];
+                    for (const table of tablesL1) {
+                        await sequelize.query(`DELETE FROM ${table} WHERE client_id = :id`, { replacements: { id: client.id }, transaction: t });
+                    }
+
+                    // Level 2: Header transaksi
+                    const tablesL2 = ['purchases', 'sales'];
+                    for (const table of tablesL2) {
+                        await sequelize.query(`DELETE FROM ${table} WHERE client_id = :id`, { replacements: { id: client.id }, transaction: t });
+                    }
+
+                    // Level 3: Master Data / Entity Dasar
+                    const tablesL3 = ['products', 'members', 'suppliers', 'categories'];
+                    for (const table of tablesL3) {
+                        await sequelize.query(`DELETE FROM ${table} WHERE client_id = :id`, { replacements: { id: client.id }, transaction: t });
+                    }
+
+                    // Level 4: Konfigurasi dan Akun
+                    const tablesL4 = ['settings', 'users'];
+                    for (const table of tablesL4) {
+                        await sequelize.query(`DELETE FROM ${table} WHERE client_id = :id`, { replacements: { id: client.id }, transaction: t });
+                    }
+
+                    // Delete Client row
+                    await client.destroy({ transaction: t });
+                } finally {
+                    // Pastikan FK check dinyalakan kembali
+                    await sequelize.query('SET FOREIGN_KEY_CHECKS = 1', { transaction: t });
+                }
+            });
+
+            return ApiResponse.success(res, null, "Client beserta seluruh datanya berhasil dihapus permanen");
+        } catch (error) {
             next(error);
         }
     }

@@ -633,11 +633,12 @@ class PaymentController {
       const paymentData = {
         memberDebtId: debt.id,
         memberId: debt.memberId,
+        clientId: req.user.clientId, // ✅ FIX: clientId is required
         userId: req.user.id,
         amount: parseFloat(amount),
         paymentMethod: paymentMethod,
         paymentDate: new Date(),
-        receiptNumber: receiptNumber, // ✅ TAMBAH INI
+        receiptNumber: receiptNumber,
         notes: notes,
       };
 

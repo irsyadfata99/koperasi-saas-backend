@@ -76,11 +76,10 @@ class PointController {
               "regionName",
               "totalPoints",
             ],
-            where:
-              Object.keys(memberWhereClause).length > 0
-                ? memberWhereClause
-                : undefined,
-            required: Object.keys(memberWhereClause).length > 0,
+            where: Object.keys(memberWhereClause).length > 0
+              ? { ...memberWhereClause, clientId } // ✅ FIX: scope to same client
+              : { clientId }, // ✅ Always filter by clientId
+            required: true, // ✅ Must match (ensures isolation)
           },
           {
             model: Sale,
@@ -352,14 +351,35 @@ class PointController {
   static async getMemberSummary(req, res, next) {
     try {
       const { memberId } = req.params;
+      const clientId = req.user.clientId; // ✅ FIX: scope to client
 
-      const summary = await PointTransaction.getMemberSummary(memberId);
+      const transactions = await PointTransaction.findAll({
+        where: { memberId, clientId }, // ✅ FIX: filter by clientId
+      });
 
-      return ApiResponse.success(
-        res,
-        summary,
-        "Member point summary retrieved successfully"
+      const totalEarned = transactions
+        .filter(t => t.type === "EARN")
+        .reduce((sum, t) => sum + t.points, 0);
+      const totalRedeemed = Math.abs(
+        transactions.filter(t => t.type === "REDEEM").reduce((sum, t) => sum + t.points, 0)
       );
+      const totalAdjustment = transactions
+        .filter(t => t.type === "ADJUSTMENT")
+        .reduce((sum, t) => sum + t.points, 0);
+      const totalExpired = Math.abs(
+        transactions.filter(t => t.type === "EXPIRED").reduce((sum, t) => sum + t.points, 0)
+      );
+
+      const summary = {
+        totalEarned,
+        totalRedeemed,
+        totalAdjustment,
+        totalExpired,
+        netPoints: totalEarned - totalRedeemed + totalAdjustment - totalExpired,
+        transactionCount: transactions.length,
+      };
+
+      return ApiResponse.success(res, summary, "Member point summary retrieved successfully");
     } catch (error) {
       next(error);
     }
@@ -374,18 +394,36 @@ class PointController {
     try {
       const { memberId } = req.params;
       const { page = 1, limit = 20, type } = req.query;
+      const clientId = req.user.clientId; // ✅ FIX: scope to client
 
-      const result = await PointTransaction.getMemberHistory(
-        memberId,
-        parseInt(page),
-        parseInt(limit),
-        type
-      );
+      const whereClause = { memberId, clientId }; // ✅ FIX
+      if (type) whereClause.type = type;
+
+      const offset = (parseInt(page) - 1) * parseInt(limit);
+      const { rows, count } = await PointTransaction.findAndCountAll({
+        where: whereClause,
+        order: [["created_at", "DESC"]],
+        limit: parseInt(limit),
+        offset,
+        include: [
+          {
+            model: Sale,
+            as: "sale",
+            attributes: ["id", "invoiceNumber", "finalAmount"],
+            required: false,
+          },
+        ],
+      });
 
       return ApiResponse.paginated(
         res,
-        result.transactions,
-        result.pagination,
+        rows,
+        {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: count,
+          totalPages: Math.ceil(count / parseInt(limit)),
+        },
         "Point history retrieved successfully"
       );
     } catch (error) {
