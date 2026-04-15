@@ -395,16 +395,6 @@ class ProductController {
         return ApiResponse.validationError(res, errors, "Data tidak valid");
       }
 
-      const category = await Category.findByPk(categoryId);
-      if (!category) {
-        return ApiResponse.validationError(res, { categoryId: ["Kategori tidak ditemukan"] }, "Kategori tidak ditemukan");
-      }
-
-      const supplier = await Supplier.findByPk(supplierId);
-      if (!supplier) {
-        return ApiResponse.validationError(res, { supplierId: ["Supplier tidak ditemukan"] }, "Supplier tidak ditemukan");
-      }
-
       // ✅ FIX: Handle clientId specific logic
       let { clientId } = req;
       if (!clientId && req.body.clientId) {
@@ -413,6 +403,16 @@ class ProductController {
 
       if (!clientId) {
         return ApiResponse.error(res, "Client ID is required", 400);
+      }
+
+      const category = await Category.findOne({ where: { id: categoryId, clientId } });
+      if (!category) {
+        return ApiResponse.validationError(res, { categoryId: ["Kategori tidak ditemukan"] }, "Kategori tidak ditemukan");
+      }
+
+      const supplier = await Supplier.findOne({ where: { id: supplierId, clientId } });
+      if (!supplier) {
+        return ApiResponse.validationError(res, { supplierId: ["Supplier tidak ditemukan"] }, "Supplier tidak ditemukan");
       }
 
       const sanitizedBarcode = barcode.trim();
@@ -491,7 +491,12 @@ class ProductController {
 
       const { barcode, name, categoryId, supplierId, productType, purchaseType, invoiceNo, expiryDate, description, unit, purchasePrice, sellingPriceGeneral, sellingPriceMember, points, stock, minStock, maxStock, image } = req.body;
 
-      const product = await Product.findByPk(id);
+      let { clientId } = req;
+      if (!clientId && req.body.clientId) {
+        clientId = req.body.clientId;
+      }
+
+      const product = await Product.findOne({ where: { id, clientId } });
 
       if (!product) {
         return ApiResponse.notFound(res, "Produk tidak ditemukan");
@@ -577,14 +582,14 @@ class ProductController {
       }
 
       if (categoryId) {
-        const category = await Category.findByPk(categoryId);
+        const category = await Category.findOne({ where: { id: categoryId, clientId } });
         if (!category) {
           errors.categoryId = ["Kategori tidak ditemukan"];
         }
       }
 
       if (supplierId) {
-        const supplier = await Supplier.findByPk(supplierId);
+        const supplier = await Supplier.findOne({ where: { id: supplierId, clientId } });
         if (!supplier) {
           errors.supplierId = ["Supplier tidak ditemukan"];
         }
@@ -673,7 +678,8 @@ class ProductController {
         return ApiResponse.error(res, "ID produk tidak valid", 400);
       }
 
-      const product = await Product.findByPk(id);
+      const clientId = req.user.clientId;
+      const product = await Product.findOne({ where: { id, clientId } });
 
       if (!product) {
         return ApiResponse.notFound(res, "Produk tidak ditemukan");
@@ -752,7 +758,8 @@ class ProductController {
         return ApiResponse.error(res, "Stok harus berupa angka dan tidak boleh negatif", 422);
       }
 
-      const product = await Product.findByPk(id);
+      const clientId = req.user.clientId;
+      const product = await Product.findOne({ where: { id, clientId } });
 
       if (!product) {
         return ApiResponse.notFound(res, "Produk tidak ditemukan");
@@ -786,21 +793,26 @@ class ProductController {
   // ============================================
   static async getStats(req, res, next) {
     try {
-      const totalProducts = await Product.count();
+      const clientId = req.user.clientId;
+
+      const totalProducts = await Product.count({ where: { clientId } });
 
       const lowStockProducts = await Product.count({
         where: {
+          clientId,
           [Op.and]: [where(col("stock"), Op.lte, col("min_stock"))],
         },
       });
 
       const outOfStockProducts = await Product.count({
         where: {
+          clientId,
           stock: 0,
         },
       });
 
       const products = await Product.findAll({
+        where: { clientId },
         attributes: ["stock", "purchasePrice", "sellingPrice"],
       });
 

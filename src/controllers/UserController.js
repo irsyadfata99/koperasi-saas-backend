@@ -278,6 +278,70 @@ class UserController {
             next(error);
         }
     }
+
+    // ============================================
+    // POST /api/users/:id/reset-password - Reset password
+    // ============================================
+    static async resetPassword(req, res, next) {
+        try {
+            const { id } = req.params;
+            const { password } = req.body;
+            const currentUser = req.user;
+
+            const user = await User.findByPk(id);
+            if (!user) return ApiResponse.notFound(res, "User tidak ditemukan");
+
+            // Authorization Check
+            if (currentUser.role !== "SUPER_ADMIN") {
+                if (user.clientId !== currentUser.clientId) {
+                    return ApiResponse.error(res, "Unauthorized", 403);
+                }
+            }
+
+            if (!password || password.length < 6) {
+                return ApiResponse.validationError(res, { password: ["Password minimal 6 karakter"] }, "Data tidak valid");
+            }
+
+            user.password = password;
+            await user.save();
+
+            return ApiResponse.success(res, null, "Password berhasil di-reset");
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    // ============================================
+    // PATCH /api/users/:id/status - Update user status
+    // ============================================
+    static async updateStatus(req, res, next) {
+        try {
+            const { id } = req.params;
+            const { status } = req.body;
+            const currentUser = req.user;
+
+            const user = await User.findByPk(id);
+            if (!user) return ApiResponse.notFound(res, "User tidak ditemukan");
+
+            // Authorization Check
+            if (currentUser.role !== "SUPER_ADMIN") {
+                if (user.clientId !== currentUser.clientId) {
+                    return ApiResponse.error(res, "Unauthorized", 403);
+                }
+            }
+
+            if (user.id === currentUser.id) {
+                return ApiResponse.error(res, "Tidak dapat merubah status diri sendiri", 400);
+            }
+
+            user.isActive = status === "ACTIVE";
+            await user.save();
+
+            return ApiResponse.success(res, null, "Status berhasil diupdate");
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 module.exports = UserController;

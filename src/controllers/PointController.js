@@ -511,13 +511,14 @@ class PointController {
         );
       }
 
-      const member = await Member.findByPk(memberId);
+      const clientId = req.user.clientId;
+      const member = await Member.findOne({ where: { id: memberId, clientId } });
       if (!member) {
         return ApiResponse.notFound(res, "Member not found");
       }
 
       const currentPoints = member.totalPoints || 0;
-      const clientId = req.user.clientId;
+
       const minPoints = (await Setting.get("min_points_to_redeem", clientId)) || 100;
       const pointValue = (await Setting.get("point_value", clientId)) || 1000;
       const maxRedeemPercentage = 50; // Max 50% of transaction
@@ -590,7 +591,8 @@ class PointController {
       }
 
       // Get member
-      const member = await Member.findByPk(memberId, { transaction: t });
+      const clientId = req.user.clientId;
+      const member = await Member.findOne({ where: { id: memberId, clientId }, transaction: t });
       if (!member) {
         await t.rollback();
         return ApiResponse.notFound(res, "Member not found");
@@ -787,7 +789,8 @@ class PointController {
       }
 
       // Get member
-      const member = await Member.findByPk(memberId, { transaction: t });
+      const clientId = req.user.clientId;
+      const member = await Member.findOne({ where: { id: memberId, clientId }, transaction: t });
       if (!member) {
         await t.rollback();
         return ApiResponse.notFound(res, "Member not found");

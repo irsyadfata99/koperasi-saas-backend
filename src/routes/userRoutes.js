@@ -16,4 +16,8 @@ router.get("/:id", authorize(["SUPER_ADMIN", "ADMIN"]), UserController.getById);
 router.put("/:id", authorize(["SUPER_ADMIN", "ADMIN"]), UserController.update);
 router.delete("/:id", authorize(["SUPER_ADMIN", "ADMIN"]), UserController.delete);
 
+// Reset Password & Status Update
+router.post("/:id/reset-password", authorize(["SUPER_ADMIN", "ADMIN"]), UserController.resetPassword);
+router.patch("/:id/status", authorize(["SUPER_ADMIN", "ADMIN"]), UserController.updateStatus);
+
 module.exports = router;

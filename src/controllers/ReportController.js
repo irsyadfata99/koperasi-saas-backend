@@ -237,7 +237,7 @@ class ReportController {
       } = req.query;
 
       const clientId = req.user.clientId; // ✅ Isolation
-      const whereClause = {};
+      const whereClause = { clientId };
 
       if (startDate && endDate) {
         whereClause["$sale.saleDate$"] = {
@@ -900,7 +900,8 @@ class ReportController {
       } = req.query;
 
       const offset = (parseInt(page) - 1) * parseInt(limit);
-      const whereClause = {};
+      const clientId = req.user.clientId; // ✅ Isolation
+      const whereClause = { clientId };
 
       if (status) {
         whereClause.status = status;
@@ -1046,7 +1047,8 @@ class ReportController {
       } = req.query;
 
       const offset = (parseInt(page) - 1) * parseInt(limit);
-      const whereClause = {};
+      const clientId = req.user.clientId; // ✅ Isolation
+      const whereClause = { clientId };
 
       if (status) {
         whereClause.status = status;

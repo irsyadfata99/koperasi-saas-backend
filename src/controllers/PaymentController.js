@@ -519,9 +519,10 @@ class PaymentController {
   static async getMemberDebtsByMember(req, res, next) {
     try {
       const { memberId } = req.params;
+      const clientId = req.user.clientId; // ✅ Isolation
 
       const debts = await MemberDebt.findAll({
-        where: { memberId },
+        where: { memberId, clientId },
         include: [
           {
             model: Member,
@@ -556,8 +557,10 @@ class PaymentController {
   static async getMemberDebtDetail(req, res, next) {
     try {
       const { debtId } = req.params;
+      const clientId = req.user.clientId; // ✅ Isolation
 
-      const debt = await MemberDebt.findByPk(debtId, {
+      const debt = await MemberDebt.findOne({
+        where: { id: debtId, clientId },
         include: [
           {
             model: Member,
@@ -606,7 +609,8 @@ class PaymentController {
       }
 
       // Get debt
-      const debt = await MemberDebt.findByPk(debtId, { transaction: t });
+      const clientId = req.user.clientId; // ✅ Isolation
+      const debt = await MemberDebt.findOne({ where: { id: debtId, clientId }, transaction: t });
 
       if (!debt) {
         await t.rollback();
@@ -701,9 +705,10 @@ class PaymentController {
   static async getSupplierDebtsBySupplier(req, res, next) {
     try {
       const { supplierId } = req.params;
+      const clientId = req.user.clientId; // ✅ Isolation
 
       const debts = await SupplierDebt.findAll({
-        where: { supplierId },
+        where: { supplierId, clientId },
         include: [
           {
             model: Supplier,
@@ -733,8 +738,10 @@ class PaymentController {
   static async getSupplierDebtDetail(req, res, next) {
     try {
       const { debtId } = req.params;
+      const clientId = req.user.clientId; // ✅ Isolation
 
-      const debt = await SupplierDebt.findByPk(debtId, {
+      const debt = await SupplierDebt.findOne({
+        where: { id: debtId, clientId },
         include: [
           {
             model: Supplier,
@@ -778,7 +785,8 @@ class PaymentController {
       }
 
       // Get debt
-      const debt = await SupplierDebt.findByPk(debtId, { transaction: t });
+      const clientId = req.user.clientId; // ✅ Isolation
+      const debt = await SupplierDebt.findOne({ where: { id: debtId, clientId }, transaction: t });
 
       if (!debt) {
         await t.rollback();
